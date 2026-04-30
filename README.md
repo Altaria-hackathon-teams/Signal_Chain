@@ -49,7 +49,7 @@ so there's only one origin to talk to during development.
 
 ```bash
 # 1. Clone and install all JS deps (root, backend, frontend, database)
-git clone <your-fork-url> trustproof
+git clone https://github.com/Altaria-hackathon-teams/Signal_Chain.git
 cd trustproof
 nvm use
 npm run install:all
@@ -209,4 +209,4 @@ knowing:
 
 ## License
 
-MIT. See `LICENSE` if added; otherwise treat the code as MIT-licensed.
+MIT. See [LICENSE](https://github.com/Altaria-hackathon-teams/Signal_Chain/blob/main/LICENSE).
