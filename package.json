@@ -1,0 +1,31 @@
+{
+  "name": "trustproof",
+  "version": "1.0.0",
+  "description": "DeFi safety layer on Stellar blockchain",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "concurrently -n frontend,backend,ml -c cyan,magenta,yellow \"npm run dev --prefix frontend\" \"node backend/index.js\" \"npm run ml\"",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend && npm install --prefix database",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix database test && npm run ml:test && npm run contracts:test",
+    "check": "npm run lint && npm run build && npm run test",
+    "audit": "npm audit --audit-level=moderate && npm --prefix backend audit --audit-level=moderate && npm --prefix frontend audit --audit-level=moderate && npm --prefix database audit --audit-level=moderate",
+    "backend:start": "npm --prefix backend start",
+    "frontend:preview": "npm --prefix frontend run preview",
+    "ml": "ml-engine/.venv/bin/python ml-engine/app.py",
+    "ml:install": "ml-engine/.venv/bin/python -m pip install -r ml-engine/requirements.txt",
+    "ml:venv": "python3 -m venv ml-engine/.venv && npm run ml:install",
+    "ml:test": "PYTHONPATH=ml-engine ml-engine/.venv/bin/python -m pytest ml-engine",
+    "contracts:test": "cargo test --manifest-path contracts/review-contract/Cargo.toml",
+    "db:init": "node database/init.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
