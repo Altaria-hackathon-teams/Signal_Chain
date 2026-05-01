@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavBar from '../components/NavBar';
 import RiskGauge from '../components/RiskGauge';
@@ -12,6 +12,7 @@ import RiskTimeline from '../components/RiskTimeline';
 import AiSummary from '../components/AiSummary';
 import WebSearchPanel from '../components/WebSearchPanel';
 import BackButton from '../components/BackButton';
+import { OperatorDNASection } from './Fingerprint';
 import { useWallet } from '../context/useWallet';
 import { checkWalletTxHistory } from '../utils/horizon';
 import {
@@ -25,6 +26,7 @@ import { truncateAddress, formatDate, formatAmount, formatNumber } from '../util
 
 const TABS = [
   { id: 'risk',      label: 'Risk Overview' },
+  { id: 'dna',       label: 'Operator DNA' },
   { id: 'authority', label: 'Authority' },
   { id: 'liquidity', label: 'Liquidity & Market' },
   { id: 'holders',   label: 'Holders & Activity' },
@@ -206,6 +208,7 @@ function ModelSignalGrid({ model }) {
 
 export default function Analyze() {
   const { issuerAddress } = useParams();
+  const navigate = useNavigate();
   const { address: walletAddress, connect, freighterInstalled } = useWallet();
   const [connecting, setConnecting] = useState(false);
 
@@ -229,6 +232,19 @@ export default function Analyze() {
   const [activeTab, setActiveTab]     = useState('risk');
   const [riskHistory, setRiskHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  function handleViewRiskReport(nextIssuer) {
+    setActiveTab('risk');
+    if (nextIssuer && nextIssuer !== issuerAddress) {
+      navigate(`/analyze/${nextIssuer}`);
+    }
+  }
+
+  function handleDNASubmit(nextIssuer) {
+    if (!nextIssuer || nextIssuer === issuerAddress) return false;
+    navigate(`/analyze/${nextIssuer}`);
+    return true;
+  }
 
   const loadData = useCallback(async () => {
     setLoadingScan(true); setLoadingReviews(true); setLoadingSignals(true);
@@ -675,6 +691,24 @@ export default function Analyze() {
                     </Panel>
                   </motion.div>
                 )}
+              </motion.div>
+            )}
+
+            {/* ── OPERATOR DNA ────────────────────────────────────────────── */}
+            {activeTab === 'dna' && (
+              <motion.div
+                key="dna"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <OperatorDNASection
+                  issuerAddress={issuerAddress}
+                  embedded
+                  onIssuerSubmit={handleDNASubmit}
+                  onViewRiskReport={handleViewRiskReport}
+                />
               </motion.div>
             )}
 

@@ -8,7 +8,6 @@ import { truncateAddress } from '../utils/format';
 const NAV_LINKS = [
   { to: '/verify', label: 'Verify',         primary: true },
   { to: '/check',  label: 'Before You Buy' },
-  { to: '/fingerprint', label: 'Fingerprint' },
   { to: '/compare', label: 'Compare' },
   { to: '/leaderboard', label: 'Leaderboard' },
 ];
@@ -110,12 +109,13 @@ export default function NavBar() {
           <NavLink
             key={link.to}
             to={link.to}
+            end
             className={({ isActive }) => {
               if (link.primary) {
                 return `relative px-3.5 py-1.5 text-sm rounded-lg border transition-colors ${
                   isActive
                     ? 'border-tp-green/55 bg-tp-green/15 text-tp-green shadow-[0_0_12px_rgba(0,255,136,0.18)]'
-                    : 'border-tp-green/30 bg-tp-green/[0.06] text-tp-green hover:bg-tp-green/12 hover:border-tp-green/55'
+                    : 'border-transparent bg-transparent text-emerald-100/60 hover:border-tp-green/35 hover:bg-tp-green/8 hover:text-tp-green'
                 }`;
               }
               return `relative px-3 py-1.5 text-sm rounded-lg transition-colors ${

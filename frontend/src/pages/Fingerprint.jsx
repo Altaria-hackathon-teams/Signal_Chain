@@ -194,7 +194,7 @@ function RedFlagsPanel({ flags, body }) {
   );
 }
 
-function MatchesPanel({ matches, network }) {
+function MatchesPanel({ matches, network, onSelectMatch }) {
   if (!matches || matches.length === 0) {
     return (
       <Panel>
@@ -211,32 +211,46 @@ function MatchesPanel({ matches, network }) {
         Fingerprint matches
       </SectionTitle>
       <div className="space-y-2">
-        {matches.map((m, i) => (
-          <div key={i} className="rounded-xl border border-red-500/20 bg-red-500/6 px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-mono text-tp-red font-bold text-xs">
-                  {Math.round((m.similarity || 0) * 100)}%
+        {matches.map((m, i) => {
+          const matchClass = 'font-mono text-tp-text text-xs truncate hover:text-tp-green transition-colors';
+
+          return (
+            <div key={i} className="rounded-xl border border-red-500/20 bg-red-500/6 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-tp-red font-bold text-xs">
+                    {Math.round((m.similarity || 0) * 100)}%
+                  </span>
+                  {onSelectMatch ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectMatch(m.pubkey)}
+                      className={`${matchClass} min-w-0 text-left`}
+                    >
+                      {truncateAddress(m.pubkey)}
+                    </button>
+                  ) : (
+                    <Link
+                      to={`/fingerprint/${m.pubkey}`}
+                      className={matchClass}
+                    >
+                      {truncateAddress(m.pubkey)}
+                    </Link>
+                  )}
+                  <CopyButton text={m.pubkey} />
+                </div>
+                <span className="text-tp-muted text-[10px] font-mono uppercase tracking-wider shrink-0">
+                  {m.asset_code || 'TOKEN'}
                 </span>
-                <Link
-                  to={`/fingerprint/${m.pubkey}`}
-                  className="font-mono text-tp-text text-xs truncate hover:text-tp-green transition-colors"
-                >
-                  {truncateAddress(m.pubkey)}
-                </Link>
-                <CopyButton text={m.pubkey} />
               </div>
-              <span className="text-tp-muted text-[10px] font-mono uppercase tracking-wider shrink-0">
-                {m.asset_code || 'TOKEN'}
-              </span>
+              {m.rug_loss_usd > 0 && (
+                <p className="text-tp-muted text-[11px] mt-1">
+                  est. loss: ${formatNumber(m.rug_loss_usd)}
+                </p>
+              )}
             </div>
-            {m.rug_loss_usd > 0 && (
-              <p className="text-tp-muted text-[11px] mt-1">
-                est. loss: ${formatNumber(m.rug_loss_usd)}
-              </p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="text-tp-muted text-[11px] mt-3">
         Click a match to scan that issuer's fingerprint on the {network}.
@@ -280,8 +294,12 @@ function FeaturePanel({ features }) {
   );
 }
 
-export default function Fingerprint() {
-  const { issuerAddress } = useParams();
+export function OperatorDNASection({
+  issuerAddress,
+  embedded = false,
+  onIssuerSubmit,
+  onViewRiskReport,
+}) {
   const navigate = useNavigate();
 
   const [input, setInput] = useState(issuerAddress || '');
@@ -322,11 +340,165 @@ export default function Fingerprint() {
       return;
     }
     setError('');
-    if (issuerAddress === normalized) {
+    if (embedded) {
+      setInput(normalized);
+      if (onIssuerSubmit?.(normalized)) return;
+      runScan(normalized, network);
+    } else if (issuerAddress === normalized) {
       runScan(normalized, network);
     } else {
       navigate(`/fingerprint/${normalized}`, { replace: false });
     }
+  }
+
+  function handleSelectMatch(pubkey) {
+    setInput(pubkey);
+    runScan(pubkey, network);
+  }
+
+  const content = (
+    <>
+      {!embedded && <BackButton className="mb-6" />}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <p className="font-mono text-xs uppercase tracking-[0.22em] text-tp-green mb-3">Operator DNA</p>
+        <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white">
+          Behavioral&nbsp;Fingerprint.
+        </h1>
+        <p className="mt-3 max-w-2xl text-emerald-50/64 text-base leading-7">
+          Every issuer leaves a behavioral signature in how they fund, configure, and operate
+          their account. We extract a 40-feature fingerprint, run cosine similarity against
+          known rugs, and ask a behavioral random forest for a verdict.
+        </p>
+        {stats?.stats && (
+          <p className="mt-3 text-tp-muted text-xs font-mono">
+            DB: {formatNumber(stats.stats.total)} fingerprints · {formatNumber(stats.stats.rugs)} confirmed rugs
+          </p>
+        )}
+      </motion.div>
+
+      {/* Search */}
+      <motion.form
+        onSubmit={handleSubmit}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1, duration: 0.4 }}
+        className="mt-8 rounded-3xl border border-emerald-300/14 bg-[#06110d]/86 p-5 sm:p-6 shadow-[0_0_60px_rgba(0,255,136,0.06)] backdrop-blur"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-3">
+          <div>
+            <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-tp-muted mb-1.5 block">
+              Issuer address
+            </label>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value.toUpperCase())}
+              placeholder="G..."
+              className={`w-full rounded-xl bg-black/40 border px-3 py-2.5 font-mono text-sm
+                text-white placeholder-emerald-100/20 focus:outline-none focus:ring-2
+                ${error ? 'border-tp-red/60 focus:ring-tp-red/30' : 'border-emerald-300/14 focus:border-tp-green/40 focus:ring-tp-green/20'}`}
+            />
+          </div>
+          <div>
+            <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-tp-muted mb-1.5 block">
+              Network
+            </label>
+            <select
+              value={network}
+              onChange={(e) => setNetwork(e.target.value)}
+              className="w-full rounded-xl bg-black/40 border border-emerald-300/14 px-3 py-2.5 font-mono text-sm text-tp-text focus:outline-none focus:ring-2 focus:ring-tp-green/20"
+            >
+              <option value="testnet">Testnet</option>
+              <option value="mainnet">Mainnet</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={loading || !input}
+              className="w-full sm:w-auto bg-tp-green text-black font-bold px-5 py-2.5 rounded-xl
+                         hover:bg-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed
+                         transition-all hover:shadow-[0_0_16px_rgba(0,255,136,0.3)]"
+            >
+              {loading ? 'Fingerprinting…' : 'Run DNA scan'}
+            </button>
+          </div>
+        </div>
+        {error && <p className="mt-3 text-sm text-tp-red">{error}</p>}
+      </motion.form>
+
+      <AnimatePresence mode="wait">
+        {loading && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mt-8 grid grid-cols-1 gap-4"
+          >
+            <SkeletonCard lines={5} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SkeletonCard lines={5} />
+              <SkeletonCard lines={5} />
+            </div>
+          </motion.div>
+        )}
+
+        {result && !loading && (
+          <motion.section
+            key="result"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-8"
+          >
+            <VerdictHeader result={result} network={network} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <RedFlagsPanel flags={result.verdict.redFlags} body={result.verdict.body} />
+              <MatchesPanel
+                matches={result.dna?.matches}
+                network={network}
+                onSelectMatch={embedded ? handleSelectMatch : undefined}
+              />
+            </div>
+
+            <FeaturePanel features={result.features} />
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-tp-muted font-mono">
+              <span>
+                {result.stats?.operations_harvested} ops · {result.stats?.offers_harvested} offers · {result.stats?.trades_harvested} trades harvested
+              </span>
+              {onViewRiskReport ? (
+                <button
+                  type="button"
+                  onClick={() => onViewRiskReport(result.issuer)}
+                  className="text-tp-green hover:underline"
+                >
+                  View full risk report →
+                </button>
+              ) : (
+                <Link
+                  to={`/analyze/${result.issuer}`}
+                  className="text-tp-green hover:underline"
+                >
+                  View full risk report →
+                </Link>
+              )}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <section className="text-tp-text">
+        {content}
+      </section>
+    );
   }
 
   return (
@@ -340,126 +512,14 @@ export default function Fingerprint() {
         <NavBar />
 
         <main className="mx-auto max-w-5xl px-5 py-12 sm:px-8">
-          <BackButton className="mb-6" />
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <p className="font-mono text-xs uppercase tracking-[0.22em] text-tp-green mb-3">Operator DNA</p>
-            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white">
-              Behavioral&nbsp;Fingerprint.
-            </h1>
-            <p className="mt-3 max-w-2xl text-emerald-50/64 text-base leading-7">
-              Every issuer leaves a behavioral signature in how they fund, configure, and operate
-              their account. We extract a 40-feature fingerprint, run cosine similarity against
-              known rugs, and ask a behavioral random forest for a verdict.
-            </p>
-            {stats?.stats && (
-              <p className="mt-3 text-tp-muted text-xs font-mono">
-                DB: {formatNumber(stats.stats.total)} fingerprints · {formatNumber(stats.stats.rugs)} confirmed rugs
-              </p>
-            )}
-          </motion.div>
-
-          {/* Search */}
-          <motion.form
-            onSubmit={handleSubmit}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-            className="mt-8 rounded-3xl border border-emerald-300/14 bg-[#06110d]/86 p-5 sm:p-6 shadow-[0_0_60px_rgba(0,255,136,0.06)] backdrop-blur"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-3">
-              <div>
-                <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-tp-muted mb-1.5 block">
-                  Issuer address
-                </label>
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value.toUpperCase())}
-                  placeholder="G..."
-                  className={`w-full rounded-xl bg-black/40 border px-3 py-2.5 font-mono text-sm
-                    text-white placeholder-emerald-100/20 focus:outline-none focus:ring-2
-                    ${error ? 'border-tp-red/60 focus:ring-tp-red/30' : 'border-emerald-300/14 focus:border-tp-green/40 focus:ring-tp-green/20'}`}
-                />
-              </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase tracking-[0.22em] text-tp-muted mb-1.5 block">
-                  Network
-                </label>
-                <select
-                  value={network}
-                  onChange={(e) => setNetwork(e.target.value)}
-                  className="w-full rounded-xl bg-black/40 border border-emerald-300/14 px-3 py-2.5 font-mono text-sm text-tp-text focus:outline-none focus:ring-2 focus:ring-tp-green/20"
-                >
-                  <option value="testnet">Testnet</option>
-                  <option value="mainnet">Mainnet</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  disabled={loading || !input}
-                  className="w-full sm:w-auto bg-tp-green text-black font-bold px-5 py-2.5 rounded-xl
-                             hover:bg-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed
-                             transition-all hover:shadow-[0_0_16px_rgba(0,255,136,0.3)]"
-                >
-                  {loading ? 'Fingerprinting…' : 'Run DNA scan'}
-                </button>
-              </div>
-            </div>
-            {error && <p className="mt-3 text-sm text-tp-red">{error}</p>}
-          </motion.form>
-
-          <AnimatePresence mode="wait">
-            {loading && (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="mt-8 grid grid-cols-1 gap-4"
-              >
-                <SkeletonCard lines={5} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <SkeletonCard lines={5} />
-                  <SkeletonCard lines={5} />
-                </div>
-              </motion.div>
-            )}
-
-            {result && !loading && (
-              <motion.section
-                key="result"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mt-8"
-              >
-                <VerdictHeader result={result} network={network} />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <RedFlagsPanel flags={result.verdict.redFlags} body={result.verdict.body} />
-                  <MatchesPanel matches={result.dna?.matches} network={network} />
-                </div>
-
-                <FeaturePanel features={result.features} />
-
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-tp-muted font-mono">
-                  <span>
-                    {result.stats?.operations_harvested} ops · {result.stats?.offers_harvested} offers · {result.stats?.trades_harvested} trades harvested
-                  </span>
-                  <Link
-                    to={`/analyze/${result.issuer}`}
-                    className="text-tp-green hover:underline"
-                  >
-                    View full risk report →
-                  </Link>
-                </div>
-              </motion.section>
-            )}
-          </AnimatePresence>
+          {content}
         </main>
       </div>
     </div>
   );
+}
+
+export default function Fingerprint() {
+  const { issuerAddress } = useParams();
+  return <OperatorDNASection issuerAddress={issuerAddress} />;
 }
