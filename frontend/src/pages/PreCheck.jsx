@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavBar from '../components/NavBar';
+import BackButton from '../components/BackButton';
 import RiskGauge from '../components/RiskGauge';
 import SeverityBadge from '../components/SeverityBadge';
 import { isValidIssuerAddress, normalizeIssuerAddress } from '../utils/stellar';
@@ -64,6 +65,7 @@ export default function PreCheck() {
         <NavBar />
 
         <main className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
+          <BackButton className="mb-6" />
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}

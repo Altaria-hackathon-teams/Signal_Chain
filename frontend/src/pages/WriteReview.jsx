@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import NavBar from '../components/NavBar';
+import BackButton from '../components/BackButton';
 import { useWallet } from '../context/useWallet';
 import { loadAssetData, checkWalletTxHistory } from '../utils/horizon';
 import { submitReview, stellarExpertTxUrl } from '../utils/api';
@@ -121,11 +122,11 @@ export default function WriteReview() {
         <NavBar />
 
         <main className="max-w-xl mx-auto px-4 py-12">
-          <div className="flex items-center gap-2 text-tp-muted text-sm mb-6 font-mono">
-            <Link to={`/analyze/${issuerAddress}`} className="hover:text-tp-green transition-colors">
-              ← Back to analysis
-            </Link>
-          </div>
+          <BackButton
+            to={`/analyze/${issuerAddress}`}
+            label="Back to analysis"
+            className="mb-6"
+          />
 
           <motion.div
             initial={{ opacity: 0, y: 16 }}

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import NavBar from '../components/NavBar';
+import BackButton from '../components/BackButton';
 import MatrixBackground from '../components/MatrixBackground';
 import { useWallet } from '../context/useWallet';
 import { isValidIssuerAddress, normalizeIssuerAddress } from '../utils/stellar';
@@ -43,9 +44,7 @@ export default function Verification() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: 'easeOut' }}
           >
-            <Link to="/" className="font-mono text-xs uppercase tracking-[0.22em] text-emerald-100/58 transition hover:text-tp-green">
-              Back to overview
-            </Link>
+            <BackButton label="Back to overview" />
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
               Verify an issuer with live chain evidence.
             </h1>

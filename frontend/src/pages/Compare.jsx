@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavBar from '../components/NavBar';
+import BackButton from '../components/BackButton';
 import RiskGauge from '../components/RiskGauge';
 import { isValidIssuerAddress, normalizeIssuerAddress } from '../utils/stellar';
 import { runAnalysis } from '../utils/analyze';
@@ -124,6 +125,7 @@ export default function Compare() {
         <NavBar />
 
         <main className="mx-auto max-w-5xl px-5 py-12 sm:px-8">
+          <BackButton className="mb-6" />
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <p className="font-mono text-xs uppercase tracking-[0.22em] text-tp-green mb-3">Compare</p>
             <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white">

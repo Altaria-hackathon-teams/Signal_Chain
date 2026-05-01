@@ -21,6 +21,7 @@
     }
   },
   "dependencies": {
+    "@google/genai": "^1.51.0",
     "@stellar/stellar-sdk": "^15.0.1",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",

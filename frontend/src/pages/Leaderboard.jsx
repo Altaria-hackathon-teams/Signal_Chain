@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import NavBar from '../components/NavBar';
+import BackButton from '../components/BackButton';
 import SkeletonCard from '../components/SkeletonCard';
 import { fetchLeaderboard } from '../utils/api';
 import { truncateAddress, formatDate } from '../utils/format';
@@ -97,6 +98,7 @@ export default function Leaderboard() {
         <NavBar />
 
         <main className="mx-auto max-w-4xl px-5 py-12 sm:px-8">
+          <BackButton className="mb-6" />
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}

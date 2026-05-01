@@ -61,3 +61,36 @@ export async function fetchRiskHistory(issuerAddress) {
   const { data } = await backend.get(`/risk-history/${issuerAddress}`);
   return data;
 }
+
+// Operator-DNA fingerprint scan. Returns the full DNA payload (verdict, dna,
+// features, vector, stats). Throws with the backend's error string on failure.
+export async function scanDNA(issuerAddress, network = 'testnet') {
+  try {
+    const { data } = await backend.get(`/dna/${issuerAddress}`, { params: { network } });
+    if (data && data.ok === false) throw new Error(data.error || 'DNA scan failed');
+    return data;
+  } catch (err) {
+    const apiMsg = err?.response?.data?.error;
+    if (apiMsg) throw new Error(apiMsg);
+    throw err;
+  }
+}
+
+export async function fetchDNAStats() {
+  const { data } = await backend.get('/dna');
+  return data;
+}
+
+export async function fetchAiSummary({ address, scan, riskScore }) {
+  const { data } = await backend.post('/ai/summary', { address, scan, riskScore }, { timeout: 60_000 });
+  return data;
+}
+
+export async function fetchAiWebSearch({ address, assetCode, scan, reviews }) {
+  const { data } = await backend.post(
+    '/ai/websearch',
+    { address, assetCode, scan, reviews },
+    { timeout: 90_000 },
+  );
+  return data;
+}

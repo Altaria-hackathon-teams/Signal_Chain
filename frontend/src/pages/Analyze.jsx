@@ -9,6 +9,9 @@ import SkeletonCard from '../components/SkeletonCard';
 import HolderBar from '../components/HolderBar';
 import ShareReport from '../components/ShareReport';
 import RiskTimeline from '../components/RiskTimeline';
+import AiSummary from '../components/AiSummary';
+import WebSearchPanel from '../components/WebSearchPanel';
+import BackButton from '../components/BackButton';
 import { useWallet } from '../context/useWallet';
 import { checkWalletTxHistory } from '../utils/horizon';
 import {
@@ -369,13 +372,13 @@ export default function Analyze() {
         <NavBar />
 
         <main className="max-w-6xl mx-auto px-4 py-6">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-tp-muted text-xs mb-5 font-mono">
-            <Link to="/" className="hover:text-tp-green transition-colors flex items-center gap-1">
-              <span>←</span> <span>Home</span>
-            </Link>
-            <span className="text-tp-border">/</span>
-            <span className="text-emerald-100/40 truncate max-w-xs">{issuerAddress}</span>
+          {/* Breadcrumb + back */}
+          <div className="flex flex-wrap items-center gap-3 mb-5">
+            <BackButton />
+            <div className="flex items-center gap-2 text-tp-muted text-xs font-mono">
+              <span className="text-tp-border">/</span>
+              <span className="text-emerald-100/40 truncate max-w-xs">{issuerAddress}</span>
+            </div>
           </div>
 
           {/* Error */}
@@ -552,6 +555,16 @@ export default function Analyze() {
                 exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}
                 className="grid grid-cols-1 lg:grid-cols-2 gap-4"
               >
+                {!loadingScan && scan && risk && (
+                  <div className="lg:col-span-2">
+                    <AiSummary
+                      address={issuerAddress}
+                      scan={scan.scan}
+                      riskScore={risk.score}
+                    />
+                  </div>
+                )}
+
                 {loadingScan ? (
                   <SkeletonCard lines={6} />
                 ) : risk ? (
@@ -1132,6 +1145,18 @@ export default function Analyze() {
                     </Panel>
                   ) : null}
                 </div>
+
+                {/* Cross-web AI investigation */}
+                {!loadingScan && scan && (
+                  <div className="md:col-span-2">
+                    <WebSearchPanel
+                      address={issuerAddress}
+                      assetCode={assetCode}
+                      scan={scan.scan}
+                      reviews={reviews?.reviews || []}
+                    />
+                  </div>
+                )}
 
                 {/* Data quality */}
                 <div className="md:col-span-2">

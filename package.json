@@ -23,7 +23,8 @@
     "ml:venv": "python3 -m venv ml-engine/.venv && npm run ml:install",
     "ml:test": "PYTHONPATH=ml-engine ml-engine/.venv/bin/python -m pytest ml-engine",
     "contracts:test": "cargo test --manifest-path contracts/review-contract/Cargo.toml",
-    "db:init": "node database/init.js"
+    "db:init": "node database/init.js",
+    "dna:seed": "node backend/dna/seed.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

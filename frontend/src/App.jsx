@@ -8,6 +8,7 @@ const WriteReview = lazy(() => import('./pages/WriteReview'))
 const PreCheck = lazy(() => import('./pages/PreCheck'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const Compare = lazy(() => import('./pages/Compare'))
+const Fingerprint = lazy(() => import('./pages/Fingerprint'))
 
 function RouteFallback() {
   return (
@@ -26,6 +27,8 @@ export default function App() {
         <Route path="/check" element={<PreCheck />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/compare" element={<Compare />} />
+        <Route path="/fingerprint" element={<Fingerprint />} />
+        <Route path="/fingerprint/:issuerAddress" element={<Fingerprint />} />
         <Route path="/analyze/:issuerAddress" element={<Analyze />} />
         <Route path="/reviews/:issuerAddress" element={<WriteReview />} />
       </Routes>

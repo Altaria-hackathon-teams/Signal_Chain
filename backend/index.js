@@ -3,6 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const contractClient = require('./contractClient');
+const geminiClient = require('./geminiClient');
+const { runDNA } = require('./dna');
+const { DNA_DB } = require('./dna/db');
 
 const app = express();
 app.disable('x-powered-by');
@@ -20,7 +23,7 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'));
   },
 }));
-app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '64kb' }));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 
 // Lazy-load DB so it initializes on first use.
 // NOTE: reviews are NOT stored in SQLite — they live on the Soroban contract.
@@ -466,6 +469,131 @@ app.get('/api/risk-history/:issuerAddress', (req, res) => {
   }
 });
 
+// ────────────────────────────────────────────────────────────────────
+// Operator DNA — behavioral fingerprinting
+// ────────────────────────────────────────────────────────────────────
+
+const _dnaCache = new Map();
+function dnaCacheKey(issuer, network) { return `${network}:${issuer}`; }
+
+function isStellarPubkey(s) { return typeof s === 'string' && /^G[A-Z2-7]{55}$/.test(s); }
+
+// GET /api/dna/:issuer?network=testnet|mainnet
+app.get('/api/dna/:issuer', async (req, res) => {
+  const { issuer } = req.params;
+  const network = req.query.network === 'mainnet' ? 'mainnet' : 'testnet';
+  if (!isStellarPubkey(issuer)) {
+    return res.status(400).json({ ok: false, error: 'Invalid Stellar issuer pubkey' });
+  }
+  const key = dnaCacheKey(issuer, network);
+  const hit = _dnaCache.get(key);
+  if (hit && hit.expires > Date.now()) {
+    return res.json({ ...hit.value, cache: { hit: true, ttl_seconds: 120 } });
+  }
+  try {
+    const result = await runDNA(issuer, network === 'testnet');
+    _dnaCache.set(key, { value: result, expires: Date.now() + 120_000 });
+    res.json({ ...result, cache: { hit: false, ttl_seconds: 120 } });
+  } catch (err) {
+    console.error('DNA error:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/dna/confirm-rug — mark a previously-scanned issuer as a rug
+//                            (for future fingerprint matching).
+// body: { issuer, lossUsd? }
+app.post('/api/dna/confirm-rug', (req, res) => {
+  const { issuer, lossUsd } = req.body || {};
+  if (!isStellarPubkey(issuer)) {
+    return res.status(400).json({ ok: false, error: 'Invalid Stellar issuer pubkey' });
+  }
+  try {
+    DNA_DB.confirmRug(issuer, Number(lossUsd) || 0);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/dna — small stats payload for the landing/dashboard.
+app.get('/api/dna', (_req, res) => {
+  try {
+    res.json({ ok: true, stats: DNA_DB.getStats() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// Gemini-powered AI endpoints
+// ────────────────────────────────────────────────────────────────────
+
+// 5-min cache so repeated views of the same issuer don't re-bill Gemini.
+const _aiCache = new Map();
+function aiCacheGet(key) {
+  const hit = _aiCache.get(key);
+  if (!hit || hit.expires < Date.now()) return null;
+  return hit.value;
+}
+function aiCacheSet(key, value, ttlMs = 5 * 60_000) {
+  _aiCache.set(key, { value, expires: Date.now() + ttlMs });
+}
+
+// POST /api/ai/summary
+// body: { address, scan, riskScore? }
+app.post('/api/ai/summary', async (req, res) => {
+  try {
+    if (!geminiClient.isConfigured()) {
+      return res.status(503).json({
+        error: 'GEMINI_API_KEY is not set in backend/.env',
+      });
+    }
+    const { address, scan, riskScore } = req.body || {};
+    if (!address || !scan) {
+      return res.status(400).json({ error: 'address and scan are required' });
+    }
+    const cacheKey = `summary:${address}:${riskScore ?? ''}`;
+    const cached = aiCacheGet(cacheKey);
+    if (cached) return res.json({ ...cached, cached: true });
+
+    const result = await geminiClient.summarizeAnalysis({ address, scan, riskScore });
+    aiCacheSet(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error('AI summary failed:', err);
+    res.status(500).json({ error: err.message || 'AI summary failed' });
+  }
+});
+
+// POST /api/ai/websearch
+// body: { address, assetCode, scan, reviews }
+app.post('/api/ai/websearch', async (req, res) => {
+  try {
+    if (!geminiClient.isConfigured()) {
+      return res.status(503).json({
+        error: 'GEMINI_API_KEY is not set in backend/.env',
+      });
+    }
+    const { address, assetCode, scan, reviews } = req.body || {};
+    if (!address || !scan) {
+      return res.status(400).json({ error: 'address and scan are required' });
+    }
+    // Don't cache websearch — the user explicitly clicked the button to trigger
+    // a fresh investigation, and grounded results are time-sensitive.
+    const result = await geminiClient.webSearchInvestigation({
+      address,
+      assetCode,
+      scan,
+      reviews: reviews || [],
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('AI websearch failed:', err);
+    res.status(500).json({ error: err.message || 'AI websearch failed' });
+  }
+});
+
 const PORT = Number(process.env.PORT || 3001);
 app.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
@@ -473,5 +601,10 @@ app.listen(PORT, () => {
     console.warn('⚠  REVIEW_CONTRACT_ID not set — review endpoints will fail until the Soroban contract is deployed (see contracts/README.md).');
   } else {
     console.log(`✓ Soroban review contract: ${contractClient.CONTRACT_ID}`);
+  }
+  if (!geminiClient.isConfigured()) {
+    console.warn('⚠  GEMINI_API_KEY not set — /api/ai/* endpoints will return 503.');
+  } else {
+    console.log(`✓ Gemini configured (model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'})`);
   }
 });
